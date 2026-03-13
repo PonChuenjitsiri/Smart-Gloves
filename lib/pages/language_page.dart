@@ -13,20 +13,51 @@ class LanguageManualPage extends StatefulWidget {
 
 class _LanguageManualPageState extends State<LanguageManualPage> {
   late Future<List<Manual>> futureManuals;
+  List<Manual> _allManuals = [];
+  List<Manual> _filteredManuals = [];
+  List<String> _categories = ["ทั้งหมด"];
+  String _selectedCategory = "ทั้งหมด";
+
   int currentPage = 1;
   final int itemsPerPage = 10;
 
   @override
   void initState() {
     super.initState();
-    futureManuals = ApiService().fetchManuals();
+    _loadData();
   }
 
-  // ฟังก์ชันคำนวณว่าจะโชว์เลขหน้าไหนบ้าง (เช่น 4 5 6)
+  void _loadData() {
+    futureManuals = ApiService().fetchManuals();
+    futureManuals.then((data) {
+      if (mounted) {
+        final uniqueCats = data.map((e) => e.category).toSet().toList();
+        uniqueCats.sort();
+        setState(() {
+          _allManuals = data;
+          _categories = ["ทั้งหมด", ...uniqueCats];
+          _filteredManuals = data;
+        });
+      }
+    });
+  }
+
+  void _filterByCategory(String category) {
+    setState(() {
+      _selectedCategory = category;
+      currentPage = 1;
+      if (category == "ทั้งหมด") {
+        _filteredManuals = _allManuals;
+      } else {
+        _filteredManuals = _allManuals
+            .where((m) => m.category == category)
+            .toList();
+      }
+    });
+  }
+
   List<int> _getVisiblePages(int totalPages) {
-    if (totalPages <= 3) {
-      return List.generate(totalPages, (i) => i + 1);
-    }
+    if (totalPages <= 3) return List.generate(totalPages, (i) => i + 1);
     if (currentPage <= 2) return [1, 2, 3];
     if (currentPage >= totalPages - 1)
       return [totalPages - 2, totalPages - 1, totalPages];
@@ -42,22 +73,24 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        // ปรับขนาดปุ่ม Back ให้เท่ากับหน้า Detail
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: primaryColor),
+          padding: const EdgeInsets.only(left: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: primaryColor,
+            size: 35,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "Manuals",
-          style: TextStyle(
-            color: primaryColor,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: primaryColor),
+            icon: const Icon(Icons.search, color: primaryColor, size: 28),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -67,116 +100,155 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
           ),
         ],
       ),
-      body: FutureBuilder<List<Manual>>(
-        future: futureManuals,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: primaryColor),
-            );
-          } else if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          }
-
-          List<Manual> allManuals = snapshot.data ?? [];
-          int totalPages = (allManuals.length / itemsPerPage).ceil();
-
-          int startIndex = (currentPage - 1) * itemsPerPage;
-          int endIndex = startIndex + itemsPerPage;
-          if (endIndex > allManuals.length) endIndex = allManuals.length;
-
-          List<Manual> displayedManuals = allManuals.sublist(
-            startIndex,
-            endIndex,
-          );
-
-          return Column(
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 15,
-                    vertical: 10,
+      body: Column(
+        children: [
+          // --- Category Filter Bar ---
+          Container(
+            height: 50,
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              itemCount: _categories.length,
+              itemBuilder: (context, index) {
+                bool isSelected = _selectedCategory == _categories[index];
+                return GestureDetector(
+                  onTap: () => _filterByCategory(_categories[index]),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? primaryColor
+                          : const Color(0xFFF0F5FF),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Text(
+                      _categories[index],
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : primaryColor,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
                   ),
-                  itemCount: displayedManuals.length,
-                  itemBuilder: (context, index) =>
-                      _buildVocabularyCard(context, displayedManuals[index]),
-                ),
-              ),
+                );
+              },
+            ),
+          ),
 
-              // --- Pagination UI ---
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
-                    ),
-                  ],
-                ),
-                child: Column(
+          // --- List Data & Pagination ---
+          Expanded(
+            child: FutureBuilder<List<Manual>>(
+              future: futureManuals,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    _allManuals.isEmpty) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: primaryColor),
+                  );
+                }
+
+                if (_filteredManuals.isEmpty) {
+                  return const Center(child: Text("ไม่มีข้อมูลในหมวดหมู่นี้"));
+                }
+
+                int totalPages = (_filteredManuals.length / itemsPerPage)
+                    .ceil();
+                int displayPages = totalPages < 1 ? 1 : totalPages;
+
+                int startIndex = (currentPage - 1) * itemsPerPage;
+                int endIndex =
+                    (startIndex + itemsPerPage > _filteredManuals.length)
+                    ? _filteredManuals.length
+                    : startIndex + itemsPerPage;
+
+                List<Manual> displayedItems = _filteredManuals.sublist(
+                  startIndex,
+                  endIndex,
+                );
+
+                return Column(
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // ปุ่มถอยหลัง
-                        _buildPageArrow(
-                          Icons.arrow_back_ios,
-                          isEnabled: currentPage > 1,
-                          onTap: () => setState(() => currentPage--),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        itemCount: displayedItems.length,
+                        itemBuilder: (context, index) => _buildVocabularyCard(
+                          context,
+                          displayedItems[index],
                         ),
-
-                        // รายการตัวเลขหน้า (แบบเลื่อนตาม)
-                        ..._getVisiblePages(totalPages).map(
-                          (page) => _buildPageNumber(
-                            page.toString(),
-                            isActive: currentPage == page,
-                            onTap: () => setState(() => currentPage = page),
-                          ),
-                        ),
-
-                        // ปุ่มไปข้างหน้า
-                        _buildPageArrow(
-                          Icons.arrow_forward_ios,
-                          isEnabled: currentPage < totalPages,
-                          onTap: () => setState(() => currentPage++),
-                        ),
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "หน้า $currentPage จาก $totalPages",
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
+
+                    // --- Pagination Controls ---
+                    _buildPaginationUI(displayPages),
                   ],
-                ),
-              ),
-            ],
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // แก้ไข Card ให้ขนาดคงที่ (ความสูง 120)
+  Widget _buildPaginationUI(int displayPages) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.1))),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildArrowBtn(
+                Icons.arrow_back_ios,
+                currentPage > 1,
+                () => setState(() => currentPage--),
+              ),
+
+              ..._getVisiblePages(displayPages).map((p) => _buildPageNum(p)),
+
+              _buildArrowBtn(
+                Icons.arrow_forward_ios,
+                currentPage < displayPages,
+                () => setState(() => currentPage++),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            "หน้า $currentPage จาก $displayPages",
+            style: const TextStyle(color: Colors.grey, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVocabularyCard(BuildContext context, Manual manual) {
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => VocabularyDetailPage(
-            titleThai: manual.name,
-            titleEng: manual.description,
-            imagePath: manual.url,
+            titleThai: manual.titleThai,
+            titleEng: manual.titleEng,
+            imagePath: manual.imageUrl,
             signMethod: manual.signMethod,
+            category: manual.category, // เพิ่มการส่งหมวดหมู่ไปด้วย
           ),
         ),
       ),
       child: Container(
-        height: 120, // ล็อกความสูงคงที่
+        height: 110,
         margin: const EdgeInsets.only(bottom: 15),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -188,10 +260,10 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
               child: AspectRatio(
-                aspectRatio: 3 / 4,
-                child: manual.url.startsWith('http')
+                aspectRatio: 1,
+                child: manual.imageUrl.isNotEmpty
                     ? Image.network(
-                        manual.url,
+                        manual.imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (c, e, s) => _placeholder(),
                       )
@@ -201,26 +273,39 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
             const SizedBox(width: 15),
             Expanded(
               child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.center, // จัดให้อยู่กลางแนวตั้ง
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    manual.name,
+                    manual.titleThai,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF2260FF),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
                   Text(
-                    manual.description,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87),
-                    maxLines: 2, // โชว์ได้ 2 บรรทัดถ้าข้อความยาว
-                    overflow: TextOverflow.ellipsis,
+                    manual.titleEng,
+                    style: const TextStyle(fontSize: 14, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 5),
+                  // แสดง Badge หมวดหมู่ในหน้า Manual
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      manual.category,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.blueGrey,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -236,27 +321,24 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
     child: const Icon(Icons.image, color: Colors.grey),
   );
 
-  Widget _buildPageNumber(
-    String label, {
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildPageNum(int page) {
+    bool isAct = currentPage == page;
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => setState(() => currentPage = page),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 5),
-        width: 40,
-        height: 40,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        width: 35,
+        height: 35,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF2260FF) : Colors.white,
+          color: isAct ? const Color(0xFF2260FF) : Colors.white,
           border: Border.all(color: const Color(0xFF2260FF)),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
-          label,
+          "$page",
           style: TextStyle(
-            color: isActive ? Colors.white : const Color(0xFF2260FF),
+            color: isAct ? Colors.white : const Color(0xFF2260FF),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -264,27 +346,10 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
     );
   }
 
-  Widget _buildPageArrow(
-    IconData icon, {
-    required bool isEnabled,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: isEnabled ? onTap : null,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 5),
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: isEnabled ? Colors.grey[200] : Colors.grey[100],
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          size: 16,
-          color: isEnabled ? Colors.black87 : Colors.grey[400],
-        ),
-      ),
+  Widget _buildArrowBtn(IconData icon, bool enable, VoidCallback tap) {
+    return IconButton(
+      onPressed: enable ? tap : null,
+      icon: Icon(icon, size: 16, color: enable ? Colors.black : Colors.grey),
     );
   }
 }

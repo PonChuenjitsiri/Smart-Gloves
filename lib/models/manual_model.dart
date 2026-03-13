@@ -1,25 +1,32 @@
 class Manual {
   final String id;
-  final String name;
-  final String description;
+  final String titleThai;
+  final String titleEng;
+  final String label;
+  final String category;
   final String signMethod;
-  final String url;
+  final String imageUrl;
 
   Manual({
     required this.id,
-    required this.name,
-    required this.description,
+    required this.titleThai,
+    required this.titleEng,
+    required this.label,
+    required this.category,
     required this.signMethod,
-    required this.url,
+    required this.imageUrl,
   });
 
   factory Manual.fromJson(Map<String, dynamic> json) {
     return Manual(
-      id: json['_id'],
-      name: json['name'],
-      description: json['description'] ?? '',
-      signMethod: json['sign_method'] ?? '',
-      url: json['url'] ?? '',
+      // ตรวจสอบว่า _id มาเป็น String หรือ Map (ในกรณี MongoDB บางครั้งส่งเป็น {'$oid': '...'})
+      id: json['_id']?.toString() ?? '', 
+      titleThai: json['titleThai'] ?? '',
+      titleEng: json['titleEng'] ?? '',
+      label: json['label'] ?? '',
+      category: json['category'] ?? '',
+      signMethod: json['signMethod'] ?? '',
+      imageUrl: json['imageUrl'] ?? '',
     );
   }
 }
