@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ManualPage extends StatelessWidget {
   const ManualPage({super.key});
+
+  static const platform = MethodChannel('com.example.cepfrontend/wifi_provisioning');
+
+  Future<void> _startProvisioning() async {
+    try {
+      await platform.invokeMethod('startProvisioning');
+    } on PlatformException catch (e) {
+      debugPrint("Failed to start provisioning: '${e.message}'.");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +71,40 @@ class ManualPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    "ตั้งค่า WiFi ให้กับถุงมือ:",
+                    style: TextStyle(
+                      fontFamily: 'Taviraj',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _startProvisioning,
+                      icon: const Icon(Icons.wifi, color: Colors.white),
+                      label: const Text(
+                        "ตั้งค่าการเชื่อมต่อ Wi-Fi (Provisioning)",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'Taviraj',
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
                   const Text(
                     "ขั้นตอนการเชื่อมต่อ:",
                     style: TextStyle(

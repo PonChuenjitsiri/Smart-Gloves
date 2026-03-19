@@ -220,6 +220,7 @@ class _LanguageSearchPageState extends State<LanguageSearchPage> {
         context,
         MaterialPageRoute(
           builder: (context) => VocabularyDetailPage(
+            id: manual.id, // ส่ง id ไปยังหน้า detail
             titleThai: manual.titleThai,
             titleEng: manual.titleEng,
             imagePath: manual.imageUrl,

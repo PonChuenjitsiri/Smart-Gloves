@@ -6,6 +6,7 @@ class Manual {
   final String category;
   final String signMethod;
   final String imageUrl;
+  final String videoUrl;
 
   Manual({
     required this.id,
@@ -15,6 +16,7 @@ class Manual {
     required this.category,
     required this.signMethod,
     required this.imageUrl,
+    this.videoUrl = '',
   });
 
   factory Manual.fromJson(Map<String, dynamic> json) {
@@ -27,6 +29,7 @@ class Manual {
       category: json['category'] ?? '',
       signMethod: json['signMethod'] ?? '',
       imageUrl: json['imageUrl'] ?? '',
+      videoUrl: json['videoUrl'] ?? '',
     );
   }
 }
