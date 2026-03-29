@@ -1,16 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class ManualPage extends StatelessWidget {
+class ManualPage extends StatefulWidget {
   const ManualPage({super.key});
 
+  @override
+  State<ManualPage> createState() => _ManualPageState();
+}
+
+class _ManualPageState extends State<ManualPage> {
   static const platform = MethodChannel('com.example.cepfrontend/wifi_provisioning');
+  
+  // 🌟 เพิ่มตัวแปรเช็กสถานะว่ากำลังเชื่อมต่ออยู่หรือไม่
+  bool _isProvisioning = false;
 
   Future<void> _startProvisioning() async {
+    setState(() {
+      _isProvisioning = true; // เริ่มหมุน
+    });
+
     try {
-      await platform.invokeMethod('startProvisioning');
+      // สั่งให้ Native เริ่มกระบวนการค้นหาและตั้งค่า (ทำงานเบื้องหลัง)
+      final String result = await platform.invokeMethod('startProvisioning');
+      
+      // ถ้าสำเร็จ สามารถแจ้งเตือนผู้ใช้ได้
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เชื่อมต่อสำเร็จ: $result'), backgroundColor: Colors.green),
+        );
+      }
     } on PlatformException catch (e) {
       debugPrint("Failed to start provisioning: '${e.message}'.");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เกิดข้อผิดพลาด: ${e.message}'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProvisioning = false; // หยุดหมุน
+        });
+      }
     }
   }
 
@@ -23,7 +54,7 @@ class ManualPage extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // --- Header สีฟ้าพร้อมปุ่มย้อนกลับ ---
+            // --- Header สีฟ้า ---
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(top: 50, bottom: 30, left: 10),
@@ -41,7 +72,7 @@ class ManualPage extends StatelessWidget {
                           "Application Manual",
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: 'Taviraj', // เรียกใช้ฟอนต์ที่นี่
+                            fontFamily: 'Taviraj',
                             fontSize: 24,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -80,15 +111,23 @@ class ManualPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  
+                  // 🌟 ปุ่มถูกปรับให้แสดง Loading ตอนกำลังทำงาน
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton.icon(
-                      onPressed: _startProvisioning,
-                      icon: const Icon(Icons.wifi, color: Colors.white),
-                      label: const Text(
-                        "ตั้งค่าการเชื่อมต่อ Wi-Fi (Provisioning)",
-                        style: TextStyle(
+                      onPressed: _isProvisioning ? null : _startProvisioning, // ล็อกปุ่มถ้าทำงานอยู่
+                      icon: _isProvisioning 
+                          ? const SizedBox(
+                              width: 20, 
+                              height: 20, 
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                            )
+                          : const Icon(Icons.wifi, color: Colors.white),
+                      label: Text(
+                        _isProvisioning ? "กำลังค้นหาและตั้งค่า..." : "Provision New Device",
+                        style: const TextStyle(
                           fontSize: 16,
                           fontFamily: 'Taviraj',
                           color: Colors.white,
@@ -97,6 +136,7 @@ class ManualPage extends StatelessWidget {
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
+                        disabledBackgroundColor: primaryColor.withOpacity(0.6), // สีตอนโดนล็อก
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(25),
                         ),
@@ -105,37 +145,25 @@ class ManualPage extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 30),
+                  // ... (ส่วนที่เหลือเหมือนเดิม _buildInstructionImage และ _buildStepText) ...
                   const Text(
                     "ขั้นตอนการเชื่อมต่อ:",
-                    style: TextStyle(
-                      fontFamily: 'Taviraj',
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontFamily: 'Taviraj', fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 20),
-                  
                   _buildInstructionImage(Icons.settings),
-                  
                   const SizedBox(height: 20),
                   _buildStepText("1. เข้าการตั้งค่าในโทรศัพท์ของคุณ"),
                   _buildStepText("2. ไปที่เมนู \"Wi-Fi\""),
                   _buildStepText("3. เลือกตัวเลือกที่เป็นชื่ออุปกรณ์ \"Smart-Gloves\""),
                   _buildStepText("4. เชื่อมต่อสำเร็จ"),
-                  
                   const SizedBox(height: 30),
                   const Text(
                     "การเริ่มต้นใช้งาน:",
-                    style: TextStyle(
-                      fontFamily: 'Taviraj',
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontFamily: 'Taviraj', fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 20),
-
                   _buildInstructionImage(Icons.touch_app),
-                  
                   const SizedBox(height: 20),
                   _buildStepText("5. กลับมาที่แอพพลิเคชัน ไปที่ Navbar \"Gloves\""),
                   _buildStepText("6. ตรวจสอบสถานะการเชื่อมต่อ ต้องเป็น \"Online\""),
@@ -169,7 +197,7 @@ class ManualPage extends StatelessWidget {
       child: Text(
         text,
         style: const TextStyle(
-          fontFamily: 'Taviraj', // เรียกใช้ฟอนต์ที่นี่
+          fontFamily: 'Taviraj',
           fontSize: 16,
           fontWeight: FontWeight.w500,
           color: Colors.black87,

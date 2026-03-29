@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cepfrontend/pages/splash_page.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
   runApp(
     MaterialApp(
       home: const SplashPage(),

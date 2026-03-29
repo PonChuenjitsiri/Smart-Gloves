@@ -204,8 +204,14 @@ class _LanguageSearchPageState extends State<LanguageSearchPage> {
   }
 
   Widget _buildResultsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
+    return GridView.builder(
+      padding: const EdgeInsets.all(15),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2, // 2 Columns
+        crossAxisSpacing: 15, // Space between columns
+        mainAxisSpacing: 15, // Space between rows
+        childAspectRatio: 0.85, // Adjust this ratio if the text gets cut off
+      ),
       itemCount: _filteredResults.length,
       itemBuilder: (context, index) {
         final item = _filteredResults[index];
@@ -220,81 +226,55 @@ class _LanguageSearchPageState extends State<LanguageSearchPage> {
         context,
         MaterialPageRoute(
           builder: (context) => VocabularyDetailPage(
-            id: manual.id, // ส่ง id ไปยังหน้า detail
+            id: manual.id,
             titleThai: manual.titleThai,
             titleEng: manual.titleEng,
             imagePath: manual.imageUrl,
             signMethod: manual.signMethod,
-            category: manual.category, // ส่ง category ไปด้วย
+            category: manual.category,
           ),
         ),
       ),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 15),
-        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: const Color(0xFFD9E4FF),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(15),
-              child: SizedBox(
-                width: 80,
-                height: 80,
+            // Image Section
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20), // Only round the top corners for the image
+                ),
                 child: manual.imageUrl.isNotEmpty
                     ? Image.network(
                         manual.imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (c, e, s) =>
-                            const Icon(Icons.image, color: Colors.grey),
+                            const Icon(Icons.image, size: 50, color: Colors.grey),
                       )
-                    : const Icon(Icons.image, color: Colors.grey),
+                    : const Icon(Icons.image, size: 50, color: Colors.grey),
               ),
             ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    manual.titleThai,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2260FF),
-                    ),
-                  ),
-                  Text(
-                    manual.titleEng,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87),
-                  ),
-                  const SizedBox(height: 6),
-                  // ป้ายหมวดหมู่เล็กๆ ใน Card
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      manual.category,
-                      style: const TextStyle(  
-                        fontSize: 10, 
-                        color: Colors.blueGrey,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+            
+            // Title Section (Thai Only)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                manual.titleThai,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2260FF),
+                ),
               ),
-            ),           
+            ),
           ],
         ),
       ),

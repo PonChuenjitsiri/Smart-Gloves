@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/manual_model.dart';
 
 class ApiService {
-  final String baseUrl = "http://bai-back.onepointfive.life/api/sign-languages";
+  final String baseUrl = "https://smb.pon-hub.com/api/sign-languages";
 
   Future<List<Manual>> fetchManuals() async {
     final response = await http.get(Uri.parse('$baseUrl/'));

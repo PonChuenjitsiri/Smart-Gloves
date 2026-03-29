@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cepfrontend/services/api_service.dart';
 import 'package:cepfrontend/models/manual_model.dart';
-import 'package:video_player/video_player.dart';
+// 🌟 เปลี่ยนมาใช้ VLC
+import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 
 class VocabularyDetailPage extends StatefulWidget {
   final String id;
@@ -9,7 +10,7 @@ class VocabularyDetailPage extends StatefulWidget {
   final String titleEng;
   final String imagePath;
   final String signMethod;
-  final String category; // เพิ่มตัวแปร category
+  final String category;
 
   const VocabularyDetailPage({
     super.key,
@@ -18,7 +19,7 @@ class VocabularyDetailPage extends StatefulWidget {
     required this.titleEng,
     required this.imagePath,
     required this.signMethod,
-    this.category = "ทั่วไป", // กำหนดค่าเริ่มต้น
+    this.category = "ทั่วไป",
   });
 
   @override
@@ -27,39 +28,58 @@ class VocabularyDetailPage extends StatefulWidget {
 
 class _VocabularyDetailPageState extends State<VocabularyDetailPage> {
   late Future<Manual> futureManualDetail;
-  VideoPlayerController? _videoController;
+  
+  // 🌟 ใช้ Controller ของ VLC
+  VlcPlayerController? _vlcViewController;
   bool _isVideoInitialized = false;
 
   @override
   void initState() {
     super.initState();
     futureManualDetail = ApiService().fetchManualById(widget.id);
+    
     futureManualDetail.then((manual) {
-      if (manual.videoUrl.isNotEmpty) {
-        _videoController = VideoPlayerController.network(manual.videoUrl)
-          ..initialize().then((_) {
-            setState(() {
-              _isVideoInitialized = true;
-            });
-            // Removed auto-play so user has to click to play
-            _videoController!.setLooping(true); // Keep looping when they do play it
-          }).catchError((error) {
-            print("Video initialization error: $error");
-            setState(() {
-              _isVideoInitialized = false;
-            });
-          });
-          
-        _videoController!.addListener(() {
-          if (mounted) setState(() {});
+      // 🌟 FIX 1: เช็กให้ชัวร์ว่ามีลิงก์วิดีโอจริงๆ และต้องเป็น http เท่านั้น
+      final vidUrl = manual.videoUrl.trim();
+      print("🎯 VLC กำลังพยายามโหลดลิงก์นี้: $vidUrl"); // <--- เพิ่มบรรทัดนี้
+      if (vidUrl.isNotEmpty && vidUrl.startsWith('http')) {
+        _vlcViewController = VlcPlayerController.network(
+          vidUrl, 
+          hwAcc: HwAcc.disabled, 
+          autoPlay: false,
+        );
+
+        _vlcViewController!.addListener(_vlcListener);
+        
+        setState(() {
+          _isVideoInitialized = true;
         });
       }
+    }).catchError((error) {
+      print("Error loading detail: $error");
     });
+  }
+
+  // 🌟 ฟังก์ชัน Listener สำหรับจัดการสถานะวิดีโอ
+  void _vlcListener() {
+    if (!mounted || _vlcViewController == null) return;
+    
+    // ถ้าวิดีโอเล่นจบแล้ว ให้สั่ง stop() เพื่อรีเซ็ตสถานะ
+    if (_vlcViewController!.value.playingState == PlayingState.ended) {
+      _vlcViewController!.stop();
+    }
   }
 
   @override
   void dispose() {
-    _videoController?.dispose();
+    // 🌟 1. ถอด Listener ออกก่อน
+    _vlcViewController?.removeListener(_vlcListener);
+    
+    // 🌟 2. สั่งหยุดและทำลาย VLC (ไม่ต้องใช้ async/await)
+    _vlcViewController?.stopRendererScanning();
+    _vlcViewController?.dispose();
+    
+    // 🌟 3. เรียก super.dispose() เป็น "บรรทัดสุดท้าย" เสมอ!
     super.dispose();
   }
 
@@ -73,9 +93,7 @@ class _VocabularyDetailPageState extends State<VocabularyDetailPage> {
         future: futureManualDetail,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: primaryColor),
-            );
+            return const Center(child: CircularProgressIndicator(color: primaryColor));
           }
 
           if (snapshot.hasError) {
@@ -92,18 +110,14 @@ class _VocabularyDetailPageState extends State<VocabularyDetailPage> {
           return SingleChildScrollView(
             child: Column(
               children: [
-                // ส่วนบน: Header & Image
+                // 🌟 FIX 1: New Layout Structure
                 Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.center,
+                  alignment: Alignment.topCenter,
                   children: [
-                    // 1. พื้นหลัง Header สีฟ้า
+                    // 1. Blue Header Background (Fixed height paints behind the content)
                     Container(
+                      height: 280,
                       width: double.infinity,
-                      padding: const EdgeInsets.only(
-                        top: 60, // เพิ่มพื้นที่ด้านบน
-                        bottom: 120, // เพิ่มพื้นที่ด้านล่างเพื่อให้รูปวางต่ำลง
-                      ),
                       decoration: const BoxDecoration(
                         color: primaryColor,
                         borderRadius: BorderRadius.only(
@@ -111,74 +125,84 @@ class _VocabularyDetailPageState extends State<VocabularyDetailPage> {
                           bottomRight: Radius.circular(40),
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          // ปุ่ม Back ขนาดใหญ่ขึ้น
-                          Align(
-                            alignment: Alignment.topLeft,
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 20),
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons
-                                      .arrow_back_ios_new, // ใช้ไอคอนที่ดูโมเดิร์นขึ้น
-                                  color: Colors.white,
-                                  size: 35, // ปรับปุ่มให้ใหญ่ขึ้นตามต้องการ
-                                ),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                            ),
-                          ),
-                          // หัวข้อภาษาไทย
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Text(
-                              manual?.titleThai ?? widget.titleThai,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
                     ),
-
-                    // 2. Video Player หรือ ภาพประกอบ
-                    Positioned(
-                      top: 200, // ปรับค่าจาก 180 เป็น 240 เพื่อให้รูปอยู่ต่ำลง
-                      child: Container(
-                        width: 250, // ขยายขนาดรูปเล็กน้อย
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
+                    
+                    // 2. All Content
+                    Column(
+                      children: [
+                        const SizedBox(height: 60),
+                        
+                        // Back Button
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 20),
+                            child: IconButton(
+                              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 35),
+                              onPressed: () => Navigator.pop(context),
                             ),
-                          ],
-                        ),
-                        child: AspectRatio(
-                          aspectRatio: 3 / 4,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(30),
-                            child: _buildMediaWidget(manual),
                           ),
                         ),
-                      ),
+                        
+                        // Title Text (ภาษาไทย)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Text(
+                            manual?.titleThai ?? widget.titleThai,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 5), // ระยะห่างระหว่างภาษาไทยและอังกฤษ
+                        
+                        // 🌟 เพิ่ม Title Text (ภาษาอังกฤษ) ตรงนี้ครับ
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Text(
+                            manual?.titleEng ?? widget.titleEng, // ดึงภาษาอังกฤษมาแสดง
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 22, // ขนาดเล็กลงมาหน่อยเพื่อแยกความสำคัญ
+                              fontWeight: FontWeight.w500, 
+                              color: Colors.white70, // สีขาวแบบโปร่งแสงให้ดูเป็นคำบรรยายรอง
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 20), // Pushes the video down (ปรับลดลงนิดหน่อยเพื่อชดเชยบรรทัดที่เพิ่มมา)
+                        
+                        // 3. The Video Card (Now in normal flow, so it gets 100% of touches!)
+                        Container(
+                          width: 250,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 15,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: AspectRatio(
+                            // 🌟 แก้ไขตรงนี้: เปลี่ยนจาก 3/4 เป็นสัดส่วนที่แคบและสูงขึ้น (เช่น 9/16 หรือ 2/3)
+                            // ลอง 9/16 ก่อน ถ้ายาวไปลอง 2/3 หรือ 10/16 ครับ
+                            aspectRatio: 9 / 16, 
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(30),
+                              child: _buildMediaWidget(manual),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-
-                // ระยะห่างเพื่อให้พ้นตัวรูปภาพที่ลอยอยู่
-                const SizedBox(height: 250),
-
-                // ส่วนเนื้อหาด้านล่าง
+                
+                const SizedBox(height: 50), // Normal spacing to the text below
+                
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30),
                   child: Column(
@@ -186,19 +210,11 @@ class _VocabularyDetailPageState extends State<VocabularyDetailPage> {
                     children: [
                       Row(
                         children: [
-                          const Icon(
-                            Icons.accessibility_new,
-                            color: primaryColor,
-                            size: 28,
-                          ),
+                          const Icon(Icons.accessibility_new, color: primaryColor, size: 28),
                           const SizedBox(width: 10),
                           const Text(
                             "วิธีการทำ:",
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: primaryColor,
-                            ),
+                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor),
                           ),
                         ],
                       ),
@@ -215,12 +231,7 @@ class _VocabularyDetailPageState extends State<VocabularyDetailPage> {
                           (manual?.signMethod ?? widget.signMethod).trim().isNotEmpty
                               ? (manual?.signMethod ?? widget.signMethod).trim()
                               : "ไม่มีรายละเอียดวิธีการทำ",
-                          style: const TextStyle(
-                            fontSize: 18,
-                            height: 1.6,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
+                          style: const TextStyle(fontSize: 18, height: 1.6, fontWeight: FontWeight.w500, color: Colors.black87),
                         ),
                       ),
                       const SizedBox(height: 50),
@@ -236,62 +247,122 @@ class _VocabularyDetailPageState extends State<VocabularyDetailPage> {
   }
 
   Widget _buildMediaWidget(Manual? manual) {
-    if (_isVideoInitialized && _videoController != null) {
+    // 🎬 กรณีที่ 1: มีวิดีโอที่พร้อมใช้งาน
+    if (_isVideoInitialized && _vlcViewController != null) {
       return Stack(
-        alignment: Alignment.center,
         fit: StackFit.expand,
         children: [
-          // 1. The Video Player wrapped in a GestureDetector
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              setState(() {
-                _videoController!.value.isPlaying
-                    ? _videoController!.pause()
-                    : _videoController!.play();
-              });
-            },
-            child: FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: _videoController!.value.size.width,
-                height: _videoController!.value.size.height,
-                child: VideoPlayer(_videoController!),
-              ),
+          // Layer 1 (Bottom): VlcPlayer + FittedBox (แก้ขอบดำถาวร)
+          Positioned.fill(
+            child: ValueListenableBuilder<VlcPlayerValue>(
+              valueListenable: _vlcViewController!,
+              builder: (context, value, child) {
+                // 1. ดึงขนาดวิดีโอจริง ถ้าเน็ตยังโหลดไม่เสร็จให้ใช้ค่า 300x400 ไปก่อน
+                final double videoWidth = value.size.width > 0 ? value.size.width : 300;
+                final double videoHeight = value.size.height > 0 ? value.size.height : 400;
+
+                // 2. ใช้ FittedBox + BoxFit.cover บังคับขยายเต็มพื้นที่และตัดขอบดำออก
+                // โครงสร้างนี้จะคงที่เสมอ ทำให้ VLC ไม่โดนทำลายและไม่แครช
+                return FittedBox(
+                  fit: BoxFit.cover, // 🎯 หัวใจหลักของการแก้ขอบดำ
+                  clipBehavior: Clip.hardEdge,
+                  child: SizedBox(
+                    width: videoWidth,
+                    height: videoHeight,
+                    child: VlcPlayer(
+                      controller: _vlcViewController!,
+                      aspectRatio: videoWidth / videoHeight, // ให้ VLC วาดตามสัดส่วนวิดีโอจริงไปเลย
+                      placeholder: const SizedBox(
+                        width: 300,
+                        height: 400,
+                        child: Center(
+                          child: CircularProgressIndicator(color: Color(0xFF2260FF)),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
-          
-          // 2. The Play Button Overlay (Passes taps down)
-          if (!_videoController!.value.isPlaying)
-            IgnorePointer( // <-- Crucial: Lets taps pass through to the GestureDetector
-              child: Container(
-                color: Colors.black45,
-                child: Center(
-                  child: Icon( // Changed from IconButton to Icon since we handle taps in the wrapper
-                    Icons.play_arrow,
-                    color: Colors.white,
-                    size: 60,
+
+          // ▶️ Layer 2 (Middle): Visual Play & Buffering Button
+          ValueListenableBuilder<VlcPlayerValue>(
+            valueListenable: _vlcViewController!,
+            builder: (context, value, child) {
+              // ถ้ากำลังบัฟเฟอร์ให้โชว์ที่หมุนๆ
+              if (value.playingState == PlayingState.buffering) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                );
+              }
+              // ถ้าไม่ได้เล่นอยู่ ให้โชว์ปุ่ม Play
+              if (value.playingState != PlayingState.playing) {
+                return Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Colors.black45,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.play_arrow, size: 60, color: Colors.white),
                   ),
-                ),
-              ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+
+          // 🛡️ Layer 3 (Top): Invisible Touch Receiver
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque, 
+              onTap: () {
+                if (_vlcViewController == null) return;
+                // สลับสถานะ Play/Pause
+                if (_vlcViewController!.value.playingState == PlayingState.playing) {
+                  _vlcViewController!.pause();
+                } else {
+                  _vlcViewController!.play();
+                }
+              },
+              child: Container(color: Colors.transparent),
             ),
+          ),
         ],
       );
-    } else if (manual != null && manual.imageUrl.isNotEmpty && manual.imageUrl.startsWith('http')) {
-       return Image.network(
-          manual.imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _placeholder(),
-        );
-    } else if (widget.imagePath.isNotEmpty && widget.imagePath.startsWith('http')) {
+    } 
+    
+    // 🖼️ กรณีที่ 2: ไม่มีวิดีโอ ให้แสดงรูปภาพแทน
+    String imageUrl = (manual != null && manual.imageUrl.trim().isNotEmpty) 
+        ? manual.imageUrl.trim() 
+        : widget.imagePath.trim();
+
+    if (imageUrl.isNotEmpty) {
+      if (imageUrl.startsWith('http')) {
+        // ถ้ารูปมาจากอินเทอร์เน็ต
         return Image.network(
-          widget.imagePath,
+          imageUrl,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            // 🌟 ป้องกันหน้าจอขาวระหว่างรอโหลดรูป
+            if (loadingProgress == null) return child;
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF2260FF)));
+          },
+          errorBuilder: (context, error, stackTrace) => _placeholder(),
+        );
+      } else {
+        // ถ้ารูปมาจาก assets ในเครื่อง
+        return Image.asset(
+          imageUrl,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => _placeholder(),
         );
-    } else {
-      return _placeholder();
-    }
+      }
+    } 
+
+    // ❌ กรณีที่ 3: ไม่มีทั้งวิดีโอ ไม่มีทั้งรูปภาพ ให้แสดงภาพเทาๆ แทน
+    return _placeholder();
   }
 
   Widget _placeholder() => Container(
@@ -305,5 +376,5 @@ class _VocabularyDetailPageState extends State<VocabularyDetailPage> {
       ],
     ),
   );
-}
 
+}
