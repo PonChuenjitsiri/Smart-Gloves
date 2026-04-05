@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cepfrontend/pages/home_page.dart';
+import 'package:sarnmue/pages/home_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});

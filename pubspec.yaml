@@ -1,4 +1,4 @@
-name: cepfrontend
+name: sarnmue
 description: "A new Flutter project."
 publish_to: 'none' 
 
@@ -19,12 +19,15 @@ dependencies:
   flutter_vlc_player: ^7.4.2
   esp_smartconfig: ^3.0.0
   mobile_scanner: ^6.0.11
+  wifi_scan: ^0.4.1+2
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_native_splash: ^2.3.10
+  flutter_launcher_icons: ^0.13.1
 
 
 flutter:
@@ -33,6 +36,7 @@ flutter:
   assets:
     - assets/
     - assets/fonts/
+    - assets/logo.png
 
   fonts:
     - family: Taviraj
@@ -42,3 +46,9 @@ flutter:
           weight: 500
         - asset: assets/fonts/Taviraj-Bold.ttf
           weight: 700
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logo.png"  # เปลี่ยนให้ตรงกับที่อยู่ไฟล์รูปของคุณ
+  min_sdk_android: 21 # สำหรับ Android รุ่นใหม่ๆ

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cepfrontend/pages/search_page.dart';
-import 'package:cepfrontend/pages/vocabdetail_page.dart';
-import 'package:cepfrontend/services/api_service.dart';
-import 'package:cepfrontend/models/manual_model.dart';
+import 'package:sarnmue/pages/search_page.dart';
+import 'package:sarnmue/pages/vocabdetail_page.dart';
+import 'package:sarnmue/services/api_service.dart';
+import 'package:sarnmue/models/manual_model.dart';
 
 class LanguageManualPage extends StatefulWidget {
   const LanguageManualPage({super.key});
@@ -49,9 +49,8 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
       if (category == "ทั้งหมด") {
         _filteredManuals = _allManuals;
       } else {
-        _filteredManuals = _allManuals
-            .where((m) => m.category == category)
-            .toList();
+        _filteredManuals =
+            _allManuals.where((m) => m.category == category).toList();
       }
     });
   }
@@ -119,18 +118,16 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? primaryColor
-                          : const Color(0xFFF0F5FF),
+                      color:
+                          isSelected ? primaryColor : const Color(0xFFF0F5FF),
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: Text(
                       _categories[index],
                       style: TextStyle(
                         color: isSelected ? Colors.white : primaryColor,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -155,15 +152,15 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
                   return const Center(child: Text("ไม่มีข้อมูลในหมวดหมู่นี้"));
                 }
 
-                int totalPages = (_filteredManuals.length / itemsPerPage)
-                    .ceil();
+                int totalPages =
+                    (_filteredManuals.length / itemsPerPage).ceil();
                 int displayPages = totalPages < 1 ? 1 : totalPages;
 
                 int startIndex = (currentPage - 1) * itemsPerPage;
                 int endIndex =
                     (startIndex + itemsPerPage > _filteredManuals.length)
-                    ? _filteredManuals.length
-                    : startIndex + itemsPerPage;
+                        ? _filteredManuals.length
+                        : startIndex + itemsPerPage;
 
                 List<Manual> displayedItems = _filteredManuals.sublist(
                   startIndex,
@@ -174,12 +171,15 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
                   children: [
                     Expanded(
                       child: GridView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2, 
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 15, vertical: 10),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
                           crossAxisSpacing: 15,
                           mainAxisSpacing: 15,
-                          childAspectRatio: 0.75, // <--- Change from 0.85 to 0.75 or 0.7 to make cards taller
+                          childAspectRatio:
+                              0.6, // <--- Change from 0.85 to 0.75 or 0.7 to make cards taller
                         ),
                         itemCount: displayedItems.length,
                         itemBuilder: (context, index) => _buildVocabularyCard(
@@ -219,9 +219,7 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
                 currentPage > 1,
                 () => setState(() => currentPage--),
               ),
-
               ..._getVisiblePages(displayPages).map((p) => _buildPageNum(p)),
-
               _buildArrowBtn(
                 Icons.arrow_forward_ios,
                 currentPage < displayPages,
@@ -245,25 +243,24 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
         context,
         MaterialPageRoute(
           builder: (context) => VocabularyDetailPage(
-            id: manual.id, 
+            id: manual.id,
             titleThai: manual.titleThai,
             titleEng: manual.titleEng,
             imagePath: manual.imageUrl,
             signMethod: manual.signMethod,
-            category: manual.category, 
+            category: manual.category,
           ),
         ),
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFFD9E4FF),
+          color: const Color(0xFFD9E4FF), // พื้นหลังการ์ดสีฟ้าอ่อน
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Image Section
-            // Image Section
+            // --- Image Section ---
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
@@ -273,26 +270,62 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
                     ? Image.network(
                         manual.imageUrl,
                         fit: BoxFit.cover,
-                        alignment: Alignment.topCenter, // <--- Add this line
+                        alignment: Alignment.topCenter,
                         errorBuilder: (c, e, s) => _placeholder(),
                       )
                     : _placeholder(),
               ),
             ),
-            
-            // Title Section (Thai Only)
+
+            // --- Title & Category Section ---
             Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                manual.titleThai,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2260FF),
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Column(
+                children: [
+                  // 1. คำศัพท์ภาษาไทย (ตัวหนา สีน้ำเงิน)
+                  Text(
+                    manual.titleThai,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2260FF),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+
+                  // 2. คำศัพท์ภาษาอังกฤษ (สีเทา)
+                  Text(
+                    manual.titleEng,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 3. ป้าย Label หมวดหมู่ (พื้นหลังสีขาว ขอบมน)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      manual.category,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -302,9 +335,9 @@ class _LanguageManualPageState extends State<LanguageManualPage> {
   }
 
   Widget _placeholder() => Container(
-    color: Colors.grey[300],
-    child: const Icon(Icons.image, color: Colors.grey),
-  );
+        color: Colors.grey[300],
+        child: const Icon(Icons.image, color: Colors.grey),
+      );
 
   Widget _buildPageNum(int page) {
     bool isAct = currentPage == page;

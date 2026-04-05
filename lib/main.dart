@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cepfrontend/pages/splash_page.dart';
+import 'package:sarnmue/pages/splash_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,8 +15,10 @@ void main() {
         textTheme: const TextTheme(
           bodyLarge: TextStyle(fontFamily: 'Taviraj'),
           bodyMedium: TextStyle(fontFamily: 'Taviraj'),
-          displayLarge: TextStyle(fontFamily: 'Taviraj', fontWeight: FontWeight.bold),
-          titleLarge: TextStyle(fontFamily: 'Taviraj', fontWeight: FontWeight.bold),
+          displayLarge:
+              TextStyle(fontFamily: 'Taviraj', fontWeight: FontWeight.bold),
+          titleLarge:
+              TextStyle(fontFamily: 'Taviraj', fontWeight: FontWeight.bold),
         ),
       ),
     ),

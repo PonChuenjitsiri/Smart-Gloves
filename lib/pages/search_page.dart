@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cepfrontend/services/api_service.dart';
-import 'package:cepfrontend/models/manual_model.dart';
-import 'package:cepfrontend/pages/vocabdetail_page.dart';
+import 'package:sarnmue/services/api_service.dart';
+import 'package:sarnmue/models/manual_model.dart';
+import 'package:sarnmue/pages/vocabdetail_page.dart';
 
 class LanguageSearchPage extends StatefulWidget {
   const LanguageSearchPage({super.key});
@@ -49,11 +49,9 @@ class _LanguageSearchPageState extends State<LanguageSearchPage> {
     String query = _searchController.text.toLowerCase();
     setState(() {
       _filteredResults = _allVocab.where((item) {
-        bool matchesCategory =
-            (_selectedCategory == "ทั้งหมด") ||
+        bool matchesCategory = (_selectedCategory == "ทั้งหมด") ||
             (item.category == _selectedCategory);
-        bool matchesQuery =
-            query.isEmpty ||
+        bool matchesQuery = query.isEmpty ||
             item.titleThai.toLowerCase().contains(query) ||
             item.titleEng.toLowerCase().contains(query);
         return matchesCategory && matchesQuery;
@@ -178,8 +176,8 @@ class _LanguageSearchPageState extends State<LanguageSearchPage> {
                     child: CircularProgressIndicator(color: primaryColor),
                   )
                 : _filteredResults.isEmpty
-                ? _buildEmptyState()
-                : _buildResultsList(),
+                    ? _buildEmptyState()
+                    : _buildResultsList(),
           ),
         ],
       ),
@@ -210,7 +208,7 @@ class _LanguageSearchPageState extends State<LanguageSearchPage> {
         crossAxisCount: 2, // 2 Columns
         crossAxisSpacing: 15, // Space between columns
         mainAxisSpacing: 15, // Space between rows
-        childAspectRatio: 0.85, // Adjust this ratio if the text gets cut off
+        childAspectRatio: 0.6, // Adjust this ratio if the text gets cut off
       ),
       itemCount: _filteredResults.length,
       itemBuilder: (context, index) {
@@ -237,42 +235,78 @@ class _LanguageSearchPageState extends State<LanguageSearchPage> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFFD9E4FF),
+          color: const Color(0xFFD9E4FF), // พื้นหลังการ์ดสีฟ้าอ่อน
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Image Section
+            // --- Image Section ---
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20), // Only round the top corners for the image
+                  top: Radius.circular(20),
                 ),
                 child: manual.imageUrl.isNotEmpty
                     ? Image.network(
                         manual.imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (c, e, s) =>
-                            const Icon(Icons.image, size: 50, color: Colors.grey),
+                        alignment: Alignment.topCenter,
+                        errorBuilder: (c, e, s) => _placeholder(),
                       )
-                    : const Icon(Icons.image, size: 50, color: Colors.grey),
+                    : _placeholder(),
               ),
             ),
-            
-            // Title Section (Thai Only)
+
+            // --- Title & Category Section ---
             Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                manual.titleThai,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2260FF),
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Column(
+                children: [
+                  // 1. คำศัพท์ภาษาไทย (ตัวหนา สีน้ำเงิน)
+                  Text(
+                    manual.titleThai,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2260FF),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+
+                  // 2. คำศัพท์ภาษาอังกฤษ (สีเทา)
+                  Text(
+                    manual.titleEng,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 3. ป้าย Label หมวดหมู่ (พื้นหลังสีขาว ขอบมน)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      manual.category,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -281,3 +315,8 @@ class _LanguageSearchPageState extends State<LanguageSearchPage> {
     );
   }
 }
+
+Widget _placeholder() => Container(
+      color: Colors.grey[300],
+      child: const Icon(Icons.image, color: Colors.grey),
+    );

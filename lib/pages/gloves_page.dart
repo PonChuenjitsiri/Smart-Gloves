@@ -15,14 +15,16 @@ class GlovesPage extends StatefulWidget {
 }
 
 class MessageBubble {
-  final String thaiText;
-  final String engText;
-  final DateTime time;
+  String thaiText; // เปลี่ยนเป็น String ธรรมดา ไม่ใช่ final เพื่อให้แก้ไขต่อคำได้
+  String engText;
+  DateTime time;
+  bool isComplete; // เพิ่ม flag บอกว่าประโยคนี้จบหรือยัง
 
   MessageBubble({
     required this.thaiText,
     required this.engText,
     required this.time,
+    this.isComplete = false, // ค่าเริ่มต้นคือยังไม่จบประโยค
   });
 }
 
@@ -80,6 +82,7 @@ class _GlovesPageState extends State<GlovesPage> {
   Future<void> _speakText(String text) async {
     if (text.isNotEmpty) {
       try {
+        await _flutterTts.stop();
         var result = await _flutterTts.speak(text);
         print("TTS Speak Result: $result for text: $text");
       } catch (e) {
@@ -88,19 +91,15 @@ class _GlovesPageState extends State<GlovesPage> {
     }
   }
 
-  
-
   void _connectWS() {
-    // แก้ตรงนี้ นำ widget.deviceId มาต่อ String
     final url = Uri.parse('ws://smb.pon-hub.com/api/glove/ws?device_id=${widget.deviceId}');
-    
     print("Attempting to connect to WS: $url");
 
     try {
       _channel = WebSocketChannel.connect(url);
       _channel!.stream.listen(
         (message) {
-          print("📥 Received WS message: $message"); // Debug print to see incoming raw data
+          print("📥 Received WS message: $message");
 
           try {
             final data = jsonDecode(message);
@@ -112,29 +111,70 @@ class _GlovesPageState extends State<GlovesPage> {
               isRecording = data['recording'] ?? false;
               calRound = data['round']?.toString() ?? "0";
               
-              // 2. Add message to Chat if it's marked as complete and has text
-              if (data['complete'] == true && 
-                  data['thai_word'] != null && 
-                  data['thai_word'].toString().isNotEmpty) {
-                
-                messages.add(MessageBubble(
-                  thaiText: data['thai_word'],
-                  engText: data['eng_word'] ?? "",
-                  time: DateTime.now(),
-                ));
-                
-                _speakText(data['thai_word']);
-                
-                // 3. Auto-scroll to bottom
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  if (_scrollController.hasClients) {
-                    _scrollController.animateTo(
-                      _scrollController.position.maxScrollExtent,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
-                    );
+              bool isComplete = data['complete'] ?? false;
+              String newThaiWord = data['thai_word']?.toString() ?? "";
+              String newEngWord = data['eng_word']?.toString() ?? "";
+// ---------------------------------------------------------
+              // 🛡️ 1. ป้องกันการรับค่าขยะ (ไม่รับอะไรเลยจนกว่าจะเริ่มทำท่า)
+              // ถ้าถุงมือไม่ได้กำลังบันทึก (isRecording == false) 
+              // และไม่ใช่จังหวะสรุปคำ (isComplete == false)
+              // ให้หยุดทำงานและเพิกเฉยต่อข้อความนี้ไปเลย
+              // ---------------------------------------------------------
+              if (!isRecording && !isComplete) {
+                return; 
+              }
+              if (newThaiWord.isNotEmpty) {
+                // เช็คว่ามีบับเบิ้ลล่าสุดที่ "ยังไม่จบประโยค" ให้แก้ไขคำไหม
+                if (messages.isNotEmpty && !messages.last.isComplete) {
+                  
+                  messages.last.thaiText = newThaiWord; 
+                  
+                  if (newEngWord.isNotEmpty) {
+                      messages.last.engText = newEngWord;
                   }
-                });
+                  
+                  messages.last.time = DateTime.now();
+
+                  if (isComplete) {
+                    messages.last.isComplete = true; 
+                    _speakText(messages.last.thaiText); 
+                    _scrollToBottom();
+                  }
+
+                } else {
+                  // -----------------------------------------------------------
+                  // ✅ เพิ่มโค้ดส่วนนี้: เคลียร์ข้อความเก่าทิ้งก่อนสร้างบับเบิ้ลใหม่
+                  // -----------------------------------------------------------
+                  _flutterTts.stop();
+                  messages.clear();
+                  if (messages.isNotEmpty) {
+                    // เก็บประวัติไว้แค่อันล่าสุดที่เพิ่ง complete ไปอันเดียว
+                    messages = [messages.last]; 
+                  }
+
+                  // 💡 ทริค: แต่ถ้าคุณอยากให้เหลือแค่ "1 บับเบิ้ล" บนหน้าจอเลย (โชว์แค่อันปัจจุบันเท่านั้น)
+                  // ให้เปลี่ยนจากบรรทัดด้านบนเป็น messages.clear(); แทนครับ
+                  // -----------------------------------------------------------
+
+                  String initialThai = newThaiWord;
+                  String initialEng = newEngWord;
+                  
+                  if (isComplete) {
+                     initialThai += "ครับ";
+                  }
+
+                  messages.add(MessageBubble(
+                    thaiText: initialThai,
+                    engText: initialEng,
+                    time: DateTime.now(),
+                    isComplete: isComplete,
+                  ));
+
+                  if (isComplete) {
+                     _speakText(messages.last.thaiText);
+                     _scrollToBottom();
+                  }
+                }
               }
             });
           } catch (e) {
@@ -154,6 +194,19 @@ class _GlovesPageState extends State<GlovesPage> {
       print("❌ WS Connection Exception: $e");
       _handleDisconnect();
     }
+  }
+
+  // แยกฟังก์ชันเลื่อนจอมาไว้ต่างหากเพื่อความสะอาดของโค้ด
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   void _handleDisconnect() {
