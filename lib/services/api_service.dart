@@ -2,8 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/manual_model.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ApiService {
-  final String baseUrl = "https://smb.pon-hub.com/api/sign-languages";
+  final String baseUrl = dotenv.env['BACKEND_URL'] != null 
+      ? "${dotenv.env['BACKEND_URL']}/api/sign-languages" 
+      : "https://smb.pon-hub.com/api/sign-languages";
 
   Future<List<Manual>> fetchManuals() async {
     final response = await http.get(Uri.parse('$baseUrl/'));

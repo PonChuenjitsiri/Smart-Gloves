@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class GlovesPage extends StatefulWidget {
   
   final String deviceId; // 1. เพิ่มตัวแปรรับค่า Device ID
@@ -92,7 +94,9 @@ class _GlovesPageState extends State<GlovesPage> {
   }
 
   void _connectWS() {
-    final url = Uri.parse('ws://smb.pon-hub.com/api/glove/ws?device_id=${widget.deviceId}');
+    // ดึง WEBSOCKET_URL จาก .env (ถ้าไม่มีให้ fallback กลับไปที่ค่าเดิม)
+    final wsBaseUrl = dotenv.env['WEBSOCKET_URL'] ?? 'ws://smb.pon-hub.com/api/glove/ws';
+    final url = Uri.parse('$wsBaseUrl?device_id=${widget.deviceId}');
     print("Attempting to connect to WS: $url");
 
     try {

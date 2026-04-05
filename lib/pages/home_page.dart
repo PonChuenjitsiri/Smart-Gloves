@@ -11,6 +11,8 @@ import 'dart:async';
 import 'package:wifi_scan/wifi_scan.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class SmartGloveHome extends StatefulWidget {
   const SmartGloveHome({super.key});
 
@@ -49,7 +51,8 @@ class _SmartGloveHomeState extends State<SmartGloveHome> {
 
     try {
       // 2. พยายามเชื่อมต่อ WebSocket
-      final wsUrl = Uri.parse('wss://smb.pon-hub.com/api/glove/ws?device_id=$deviceId');
+      final wsBaseUrl = dotenv.env['WEBSOCKET_URL'] ?? 'wss://smb.pon-hub.com/api/glove/ws';
+      final wsUrl = Uri.parse('$wsBaseUrl?device_id=$deviceId');
       final channel = WebSocketChannel.connect(wsUrl);
 
       // ตั้ง Timeout ไว้ที่ 3 วินาที ถ้าต่อได้แสดงว่า Backend รับรู้และออนไลน์
